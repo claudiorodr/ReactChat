@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import './App.css';
 import firebase from 'firebase/app';
 import 'firebase/firestore';
@@ -28,7 +28,7 @@ const analytics = firebase.analytics();
 function App() {
 
   const [user] = useAuthState(auth)
-  
+
   return (
     <div className="App">
       <header>
@@ -51,13 +51,13 @@ function SignIn() {
     auth.signInWithPopup(provider);
   }
 
-  return(
+  return (
     <button onClick={signInWithGoogle}>Sign In With Google</button>
   )
 }
 
 function SignOut() {
-  return auth.currentUser &&(
+  return auth.currentUser && (
     <button onClick={() => auth.SignOut()}>Sign Out</button>
   )
 }
@@ -65,21 +65,48 @@ function SignOut() {
 function ChatRoom() {
   const messagesRef = firestore.collection('messages')
   const query = messagesRef.orderBy('createdAt').limit(25)
+
   const [messages] = useCollectionData(query, { idField: 'id' })
 
-  return(
+  const [formValue, setFormValue] = useState('')
+
+  const sendMessage = async (e) => {
+    e.preventDefault()
+    const { uid, photoURL } = auth.currentUser
+
+    await messagesRef.add({
+      text: formValue,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      uid,
+      photoURL
+    })
+    setFormValue('')
+  }
+
+  return (
     <>
-    <div>
-      {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
-    </div>
+      <div>
+        {messages && messages.map(msg => <ChatMessage key={msg.id} message={msg} />)}
+      </div>
+      <form onSubmit={sendMessage}>
+        <input value={formValue} onChange={(e) => setFormValue(e.target.value)} />
+        <button type="submit" >🕊️</button>
+      </form>
     </>
   )
 }
 
 function ChatMessage(props) {
-  const {text, uid} = props.message
+  const { text, uid, photoURL  } = props.message
 
-  return <p>{text}</p>
+  const messageClass = uid === auth.currentUser.uid ? 'sent' : 'received'
+
+  return (
+    <div className={`message ${messageClass}`}>
+      <img src={photoURL} />
+      <p>{text}</p>
+    </div>
+  )
 }
 
 export default App;
